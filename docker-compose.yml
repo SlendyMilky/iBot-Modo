@@ -1,0 +1,8 @@
+version: '3.9'
+services:
+    ibot-gpt:
+        image: 'slendymilky/ibot-modo:latest'
+        container_name: ibot-modo
+        restart: always
+        environment:
+            - stack.env
