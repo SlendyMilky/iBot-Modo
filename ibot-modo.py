@@ -123,7 +123,7 @@ async def lock_inactive_threads():
                 except NotFound:
                     continue  # Skip to next iteration if message is not found
                 
-                if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=7):
+                if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=15):
                     await thread.edit(locked=True)  # Lock the thread
                     logging.info(f"Thread locked in 💸┤offres-des-abonnés")
     await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
@@ -155,13 +155,14 @@ async def lock_inactive_threads():
                     sleep 
                     await thread.edit(locked=True)  # Lock the thread
                     logging.info(f"Thread locked in 🆘┤aide")
-                    await sleep(5)
+                    await sleep(10)
     await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
 
 @bot.event
 async def on_ready():
     bot.loop.create_task(lock_inactive_threads())
 # Auto-Lock old thread in 🆘┤aide ==========================================
+
 
 
 
