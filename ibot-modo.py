@@ -126,7 +126,7 @@ async def on_member_update(before, after):
             async with before.typing():
                # try suggestion with gpt-3.5
                 response = openai.ChatCompletion.create(
-                   model="gpt-3.5-turbo",
+                   model="gpt-4",
                 messages=[
                     {"role": "system", "content": "Ton unique objectif est de proposer un pseudonyme en utilisant uniquement des lettres et des chiffres. Chaque fois que tu reçois un pseudonyme, tu ne dois répondre qu'avec le pseudonyme proposé et absolument rien d'autre."},
                     {"role": "user", "content": f"\'{after.nick}\'"}
