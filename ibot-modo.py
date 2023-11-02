@@ -111,7 +111,7 @@ async def flag_message(message, is_edited=False, original_content=""):
 
 
 
-
+'''
 # Pseudo flag ==========================================
 @bot.event
 async def on_member_update(before, after):
@@ -159,7 +159,7 @@ async def on_member_update(before, after):
         
             logging.info(f'Pseudo de {before.nick} a été modifié en {after.nick}')
 # Pseudo flag ==========================================
-
+'''
 
 
 
