@@ -210,8 +210,9 @@ async def lock_inactive_threads():
                 
                 if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=15):
                     sleep 
-                    await thread.edit(locked=True)  # Lock the thread
-                    logging.info(f"Thread locked in 🆘┤aide")
+                    new_name = f"🔒 - {thread.name}"
+                    await thread.edit(locked=True, name=new_name[:100])  # Lock the thread and add "🔒 - " to its name, trimming the name to 100 characters
+                    logging.info(f"Thread locked and name changed in 🆘┤aide")
                     await sleep(30)
     await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
 
@@ -219,6 +220,7 @@ async def lock_inactive_threads():
 async def on_ready():
     bot.loop.create_task(lock_inactive_threads())
 # Auto-Lock old thread in 🆘┤aide ==========================================
+
 
 
 
