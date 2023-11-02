@@ -3,6 +3,7 @@ import logging
 import openai
 import nextcord
 import unicodedata
+import humanize
 from nextcord.ext import commands
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
@@ -111,65 +112,14 @@ async def flag_message(message, is_edited=False, original_content=""):
 
 
 
-'''
-# Pseudo flag ==========================================
-@bot.event
-async def on_member_update(before, after):
-
-    # Check if the member's nickname has changed and if they are not in an exempt role
-    pseudo_exempt_roles = [int(id) for id in os.getenv('PSEUDO_NO_MODO').split(',')]
-
-    if before.nick != after.nick and not any(role.id in pseudo_exempt_roles for role in after.roles):
-
-        # If the nickname starts with a non-letter, tries to insert special characters or is not normalized, change it
-        if after.nick and not after.nick[0].isalpha() or not after.nick.isalnum() or not unicodedata.is_normalized('NFKC', after.nick):
-            async with before.typing():
-               # try suggestion with gpt-3.5
-                response = openai.ChatCompletion.create(
-                   model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "Ton unique objectif est de proposer un pseudonyme en utilisant uniquement des lettres et des chiffres. Chaque fois que tu reçois un pseudonyme, tu ne dois répondre qu'avec le pseudonyme proposé et absolument rien d'autre."},
-                    {"role": "user", "content": f"\'{after.nick}\'"}
-                ]
-            )
-            # generate a normalized pseudonym with gpt-3.5
-            new_nick_suggestion = response['choices'][0]['message']['content'].strip()
-        
-            normalized_nick = unicodedata.normalize('NFKC', new_nick_suggestion)
-            allowable_nick = ''.join(ch for ch in normalized_nick if ch.isalnum() or ch.isspace() or ch in ["@", "#", "$", "_", "-", "."])
-        
-            truncated_nick = allowable_nick[:32] # Makes sure the nickname is not longer than 32 characters
-            new_nick = truncated_nick if truncated_nick else None   # If all characters were special, reset nickname to None (the user's username)
-        
-            await after.edit(nick=new_nick)
-
-            
-            # Send edited nickname to moderation channel
-            pseudo_mod_channel = bot.get_channel(1162440867513114735)
-            embed = nextcord.Embed(title="Modification de pseudo automatique", color=0xff0000)
-            embed.timestamp = datetime.now(timezone.utc)
-
-            embed.add_field(name="✏️ Utilisateur", value=after.name, inline=True)
-            embed.add_field(name="🆔", value=after.id, inline=True)
-            embed.add_field(name="🔧 Pseudo avant modification", value=before.nick, inline=True)
-            embed.add_field(name="🔧 Pseudo après modification", value=after.nick, inline=True)
-            
-            embed.set_thumbnail(url=after.avatar.url)
-            await pseudo_mod_channel.send(embed=embed)
-        
-            logging.info(f'Pseudo de {before.nick} a été modifié en {after.nick}')
-# Pseudo flag ==========================================
-'''
-
-
-
-
 
 
 # Auto-Lock old thread in 💸┤offres-des-abonnés ==========================================
 async def lock_inactive_threads():
     channel_id = 1019934267406549053
+    info_channel_id = 1169746292205944873
     channel = bot.get_channel(channel_id)
+    info_channel = bot.get_channel(info_channel_id)
 
     for thread in channel.threads:
         if not thread.archived:  # Only checks threads that are not archived
@@ -180,11 +130,53 @@ async def lock_inactive_threads():
                 except NotFound:
                     continue  # Skip to next iteration if message is not found
                 
-                if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=15):
-                    await thread.edit(locked=True)  # Lock the thread
-                    logging.info(f"Thread locked in 💸┤offres-des-abonnés")
-    await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
+                if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=11):
+                    sleep 
+                    new_name = f"🔒 - {thread.name}"
+                    await thread.edit(locked=True, name=new_name[:100])  # Lock the thread and add "🔒 - " to its name
+                    logging.info(f"Thread locked and name changed in 💸┤offres-des-abonnés")
+                    await thread.send("Ce thread est fermé automatiquement après 10 jours d'inactivité.")
+                    await thread.edit(archived=True)  # Close the thread
+                    logging.info(f"Thread closed in 💸┤offres-des-abonnés")
+                    
+                    # Compile stats and send embed in info channel
+                    user_dict = {}
+                    for m in await thread.history(limit=None).flatten():
+                        if m.author.name in user_dict:
+                            user_dict[m.author.name] += 1
+                        else:
+                            user_dict[m.author.name] = 1
 
+                    thread_opened = thread.created_at.strftime("%d.%m.%Y - %H:%M")
+                    thread_closed = datetime.now(timezone.utc).strftime("%d.%m.%Y - %H:%M")
+                    duration = humanize.naturaldelta(datetime.now(timezone.utc) - thread.created_at)
+
+                    data = {
+                        "Ouvert": thread_opened,
+                        "Fermé": thread_closed,
+                        "Durée": duration,
+                        "Créateur": f'{thread.owner.name} (ID: {thread.owner.id})',
+                        "Nombre de participants": len(user_dict.keys()),
+                        "Nombre de messages": sum(user_dict.values()),
+                        "Participants": "\n".join([f"{k} - {v} messages" for k, v in user_dict.items()]),
+                        "Tag": thread.name,
+                    }
+
+                    embed = nextcord.Embed(
+                        title="🔒 - Statistiques du thread `{}`".format(thread.name), 
+                        description="Voici les statistiques pour le thread fermé.", color=0xFFFF00
+                    )
+                    embed.url = f"https://discord.com/channels/{channel.guild.id}/{thread.id}"
+                    
+                    for k, v in data.items():
+                        embed.add_field(name=k, value=v, inline=True)
+
+                    embed.timestamp = datetime.utcnow()
+                    await info_channel.send(embed=embed)
+
+                    await sleep(30)
+    await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
+            
 @bot.event
 async def on_ready():
     bot.loop.create_task(lock_inactive_threads())
@@ -197,7 +189,9 @@ async def on_ready():
 # Auto-Lock old thread in 🆘┤aide ==========================================
 async def lock_inactive_threads():
     channel_id = 1019928572103770132
+    info_channel_id = 1169746176694825022
     channel = bot.get_channel(channel_id)
+    info_channel = bot.get_channel(info_channel_id)
 
     for thread in channel.threads:
         if not thread.archived:  # Only checks threads that are not archived
@@ -211,11 +205,47 @@ async def lock_inactive_threads():
                 if datetime.now(timezone.utc) - last_message.created_at > timedelta(days=15):
                     sleep 
                     new_name = f"🔒 - {thread.name}"
-                    await thread.edit(locked=True, name=new_name[:100])  # Lock the thread, add "🔒 - " to its name, trimming the name to 100 characters
+                    await thread.edit(locked=True, name=new_name[:100])  # Lock the thread and add "🔒 - " to its name
                     logging.info(f"Thread locked and name changed in 🆘┤aide")
                     await thread.send("Ce thread est fermé automatiquement après 14 jours d'inactivité.")
                     await thread.edit(archived=True)  # Close the thread
                     logging.info(f"Thread closed in 🆘┤aide")
+                    
+                    # Compile stats and send embed in info channel
+                    user_dict = {}
+                    for m in await thread.history(limit=None).flatten():
+                        if m.author.name in user_dict:
+                            user_dict[m.author.name] += 1
+                        else:
+                            user_dict[m.author.name] = 1
+
+                    thread_opened = thread.created_at.strftime("%d.%m.%Y - %H:%M")
+                    thread_closed = datetime.now(timezone.utc).strftime("%d.%m.%Y - %H:%M")
+                    duration = humanize.naturaldelta(datetime.now(timezone.utc) - thread.created_at)
+
+                    data = {
+                        "Ouvert": thread_opened,
+                        "Fermé": thread_closed,
+                        "Durée": duration,
+                        "Créateur": f'{thread.owner.name} (ID: {thread.owner.id})',
+                        "Nombre de participants": len(user_dict.keys()),
+                        "Nombre de messages": sum(user_dict.values()),
+                        "Participants": "\n".join([f"{k} - {v} messages" for k, v in user_dict.items()]),
+                        "Tag": thread.name,
+                    }
+
+                    embed = nextcord.Embed(
+                        title="🔒 - Statistiques du thread `{}`".format(thread.name), 
+                        description="Voici les statistiques pour le thread fermé.", color=0xFFFF00
+                    )
+                    embed.url = f"https://discord.com/channels/{channel.guild.id}/{thread.id}"
+                    
+                    for k, v in data.items():
+                        embed.add_field(name=k, value=v, inline=True)
+
+                    embed.timestamp = datetime.utcnow()
+                    await info_channel.send(embed=embed)
+
                     await sleep(30)
     await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
             
