@@ -5,6 +5,7 @@ import nextcord
 import unicodedata
 import humanize
 from nextcord.ext import commands
+from nextcord import Interaction, SlashOption
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 import asyncio
@@ -15,6 +16,11 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 openai.api_key = os.getenv('OPENAI_API_KEY')
 DEBUG = os.getenv('DEBUG') == 'true'
 PSEUDO_CHANNEL_ID = os.getenv('PSEUDO_CHANNEL_ID')
+AUTHORIZED_ROLE_ID = int(os.getenv('AUTHORIZED_ROLE_ID'))
+CONFIRMED_ROLE_ID = int(os.getenv('CONFIRMED_ROLE_ID'))
+DISCORD_MOD_IDS = os.getenv('DISCORD_MOD_IDS').split(',')
+TELEGRAM_MOD_USERNAMES = os.getenv('TELEGRAM_MOD_USERNAMES').split(',')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 
 # Add custom logging level
@@ -257,6 +263,54 @@ async def on_ready():
 
 
 
+
+
+
+# Slash Commande ============================================================
+
+
+@bot.slash_command(
+    name="sos_modo",
+    description="Envoie une alerte d'urgence aux modérateurs sur Discord et Telegram."
+)
+async def sos_modo(
+        interaction: Interaction, 
+        alert_message: str = SlashOption(
+            name="message",
+            description="Votre message d'alerte",
+            required=True
+        )
+    ):
+    # Construire le message d'alerte avec les informations de l'utilisateur
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    full_message = (f"Alerte envoyée par {interaction.user} "
+                    f"(ID: {interaction.user.id}) "
+                    f"dans le salon {interaction.channel} - "
+                    f"le {timestamp} UTC:\n\n"
+                    f"{alert_message}")
+
+    user_roles = [role.id for role in interaction.user.roles]
+    if CONFIRMED_ROLE_ID in user_roles and AUTHORIZED_ROLE_ID in user_roles:
+        # Envoyer simultanément sur Discord et Telegram :
+        for user_id in DISCORD_MOD_IDS:
+            user = await bot.fetch_user(int(user_id.strip()))
+            await user.send(full_message)
+        
+        for username in TELEGRAM_MOD_USERNAMES:
+            telegram_chat_id = f"@{username.strip()}"
+            requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", 
+                data={"chat_id": telegram_chat_id, "text": full_message}
+            )
+
+        await interaction.response.send_message("Alerte SOS envoyée sur Discord et Telegram.", ephemeral=True)
+    else:
+        await interaction.send(
+            content="Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
+            ephemeral=True
+        )
+
+# Slash Commande ============================================================
 
 
 
