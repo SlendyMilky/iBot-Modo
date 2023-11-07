@@ -9,7 +9,11 @@ from nextcord import Interaction, SlashOption
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 import asyncio
+import threading
 from nextcord.errors import NotFound
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram import Update
+from telegram.ext import ContextTypes
 
 # Set up environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -267,11 +271,10 @@ async def on_ready():
 
 
 # Slash Commande ============================================================
-
-
 @bot.slash_command(
     name="sos_modo",
-    description="Envoie une alerte d'urgence aux modérateurs sur Discord et Telegram."
+    description="Envoie une alerte d'urgence aux modérateurs sur Discord et Telegram.",
+    guild_ids=[285029536016367616]  # Remplacez par l'ID de votre serveur
 )
 async def sos_modo(
         interaction: Interaction, 
@@ -281,6 +284,13 @@ async def sos_modo(
             required=True
         )
     ):
+    # Vérifier que la commande est appelée dans un contexte de serveur (guild)
+    if interaction.guild is None:
+        await interaction.response.send_message(
+            "Cette commande ne peut être utilisée qu'à l'intérieur du serveur.",
+            ephemeral=True
+        )
+        return
     # Construire le message d'alerte avec les informations de l'utilisateur
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     full_message = (f"Alerte envoyée par {interaction.user} "
@@ -290,7 +300,7 @@ async def sos_modo(
                     f"{alert_message}")
 
     user_roles = [role.id for role in interaction.user.roles]
-    if CONFIRMED_ROLE_ID in user_roles and AUTHORIZED_ROLE_ID in user_roles:
+    if AUTHORIZED_ROLE_ID in user_roles:
         # Envoyer simultanément sur Discord et Telegram :
         for user_id in DISCORD_MOD_IDS:
             user = await bot.fetch_user(int(user_id.strip()))
@@ -309,11 +319,41 @@ async def sos_modo(
             content="Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
             ephemeral=True
         )
-
 # Slash Commande ============================================================
 
 
 
 
-# Run the bot
+
+# Run the telegram bot
+# Initialisation des logs
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Cette fonction est appelée quand l'utilisateur envoie la commande /start
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Salut ! Je suis un bot et je suis ici pour aider. Gardez cependant à l'esprit que je suis uniquement conçu pour envoyer des alertes et aucune action ne peut être prise depuis Telegram.")
+
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Cette fonction est appelée à chaque fois qu'un utilisateur envoie un message texte au bot
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Je suis conçu uniquement pour envoyer des alertes et aucune action ne peut être prise depuis Telegram. Veuillez utiliser le bot Discord pour toute demande.")
+
+
+# Utilisez un nouveau fil d'exécution pour exécuter le bot Telegram
+def run_telegram_bot():
+    # Création et configuration de l'application bot
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Ajout des handlers pour intercepter les commandes /start et tous les messages texte
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+
+    # Démarrage du polling
+    application.run_polling()
+
+# Démarrez le bot Telegram dans un autre thread pour ne pas bloquer le bot Discord
+telegram_thread = threading.Thread(target=run_telegram_bot)
+telegram_thread.start()
+
+# Run the Discord bot
 bot.run(BOT_TOKEN)
