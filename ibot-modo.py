@@ -292,7 +292,6 @@ async def sos_modo(
         )
         return
 
-    # Si l'utilisateur a le rôle autorisé
     user_roles = [role.id for role in interaction.user.roles]
     if AUTHORIZED_ROLE_ID in user_roles:
         # Construire l'embed
@@ -313,6 +312,17 @@ async def sos_modo(
         if alert_channel is not None:
             # Envoyer l'embed dans le salon spécifié
             await alert_channel.send(embed=embed)
+
+            # Envoyer l'embed en privé aux modérateurs
+            mod_ids = os.getenv('DISCORD_MOD_IDS').split(',')
+            for mod_id in mod_ids:
+                try:
+                    user = await bot.fetch_user(int(mod_id.strip()))
+                    if user is not None:
+                        await user.send(embed=embed)
+                except Exception as e:
+                    print(f"Erreur lors de l'envoi de l'embed au modérateur {mod_id}: {e}")
+
         else:
             await interaction.response.send_message(
                 "Le salon d'alerte SOS est introuvable ou inaccessible.", ephemeral=True
@@ -326,6 +336,7 @@ async def sos_modo(
             "Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
             ephemeral=True
         )
+
 # Slash Commande ============================================================
 
 
