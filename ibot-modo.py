@@ -273,11 +273,11 @@ async def on_ready():
 # Slash Commande ============================================================
 @bot.slash_command(
     name="sos_modo",
-    description="Envoie une alerte d'urgence aux modérateurs sur Discord et Telegram.",
+    description="Envoie une alerte d'urgence aux modérateurs sur Discord.",
     guild_ids=[285029536016367616]  # Remplacez par l'ID de votre serveur
 )
 async def sos_modo(
-        interaction: Interaction, 
+        interaction: Interaction,
         alert_message: str = SlashOption(
             name="message",
             description="Votre message d'alerte",
@@ -291,69 +291,43 @@ async def sos_modo(
             ephemeral=True
         )
         return
-    # Construire le message d'alerte avec les informations de l'utilisateur
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    full_message = (f"Alerte envoyée par {interaction.user} "
-                    f"(ID: {interaction.user.id}) "
-                    f"dans le salon {interaction.channel} - "
-                    f"le {timestamp} UTC:\n\n"
-                    f"{alert_message}")
 
+    # Si l'utilisateur a le rôle autorisé
     user_roles = [role.id for role in interaction.user.roles]
     if AUTHORIZED_ROLE_ID in user_roles:
-        # Envoyer simultanément sur Discord et Telegram :
-        for user_id in DISCORD_MOD_IDS:
-            user = await bot.fetch_user(int(user_id.strip()))
-            await user.send(full_message)
-        
-        for username in TELEGRAM_MOD_USERNAMES:
-            telegram_chat_id = f"@{username.strip()}"
-            requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", 
-                data={"chat_id": telegram_chat_id, "text": full_message}
+        # Construire l'embed
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        embed = nextcord.Embed(
+            title=":rotating_light: Alerte SOS Modérateur :rotating_light:",
+            description=alert_message,
+            color=0xFF0000
+        )
+        embed.add_field(name="Membre", value=interaction.user.mention, inline=True)
+        embed.add_field(name="ID du Membre", value=str(interaction.user.id), inline=True)
+        embed.add_field(name="Salon", value=interaction.channel.mention, inline=True)
+        embed.set_footer(text=f"Alerte envoyée le {timestamp} UTC")
+        embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        # Récupération du salon pour envoyer le message embed
+        alert_channel = bot.get_channel(1171563858998079579)
+        if alert_channel is not None:
+            # Envoyer l'embed dans le salon spécifié
+            await alert_channel.send(embed=embed)
+        else:
+            await interaction.response.send_message(
+                "Le salon d'alerte SOS est introuvable ou inaccessible.", ephemeral=True
             )
 
-        await interaction.response.send_message("Alerte SOS envoyée sur Discord et Telegram.", ephemeral=True)
+        # Envoyer une confirmation à l'utilisateur qui a déclenché la commande
+        await interaction.response.send_message("Alerte SOS envoyée aux modérateurs sur Discord.", ephemeral=True)
     else:
-        await interaction.send(
-            content="Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
+        # Si l'utilisateur n'a pas le rôle autorisé
+        await interaction.response.send_message(
+            "Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
             ephemeral=True
         )
 # Slash Commande ============================================================
 
-
-
-
-
-# Run the telegram bot
-# Initialisation des logs
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Cette fonction est appelée quand l'utilisateur envoie la commande /start
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Salut ! Je suis un bot et je suis ici pour aider. Gardez cependant à l'esprit que je suis uniquement conçu pour envoyer des alertes et aucune action ne peut être prise depuis Telegram.")
-
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Cette fonction est appelée à chaque fois qu'un utilisateur envoie un message texte au bot
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Je suis conçu uniquement pour envoyer des alertes et aucune action ne peut être prise depuis Telegram. Veuillez utiliser le bot Discord pour toute demande.")
-
-
-# Utilisez un nouveau fil d'exécution pour exécuter le bot Telegram
-def run_telegram_bot():
-    # Création et configuration de l'application bot
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Ajout des handlers pour intercepter les commandes /start et tous les messages texte
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
-
-    # Démarrage du polling
-    application.run_polling()
-
-# Démarrez le bot Telegram dans un autre thread pour ne pas bloquer le bot Discord
-telegram_thread = threading.Thread(target=run_telegram_bot)
-telegram_thread.start()
 
 # Run the Discord bot
 bot.run(BOT_TOKEN)
