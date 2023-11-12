@@ -34,9 +34,10 @@ logging.addLevelName(OPENAI_LEVEL_NUM, "OPENAI")
 # Logging ==========================================
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
                     format='%(asctime)s %(message)s - %(levelname)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p',
+                    datefmt='%d/%m/%Y - %H:%M:%S',
                     handlers=[logging.StreamHandler(),
-                              logging.FileHandler("modo_log.txt")])
+                              logging.FileHandler("modo_log.txt", encoding='utf-8')])  # Ajouter l'encodage ici
+
 # Logging ==========================================
 
 
@@ -44,7 +45,16 @@ logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
 
 
 # Instantiate the bot ==========================================
-bot = commands.Bot(command_prefix="§", intents=nextcord.Intents.all())
+class MyBot(commands.Bot):
+    async def on_ready(self):
+        # This will sync your slash commands with Discord.
+        await self.sync_application_commands()
+        logging.info(f'Connecté en tant que  {self.user}')
+        await self.change_presence(activity=nextcord.Game(name="t'observer..."))
+
+# Create an instance of MyBot
+bot = MyBot(command_prefix="§", intents=nextcord.Intents.all())
+
 
 if DEBUG:
     @bot.event
@@ -54,8 +64,9 @@ if DEBUG:
 
 @bot.event
 async def on_ready():
-    logging.info(f"We have logged in as {bot.user}")
+    logging.info(f'We have logged in as {bot.user}')
     await bot.change_presence(activity=nextcord.Game(name=f"t'observer..."))
+    await bot.sync_application_commands()  # Synchronize your application commands with Discord.
 # Instantiate the bot ==========================================
 
 
@@ -65,27 +76,27 @@ async def on_ready():
 # Message flag ==========================================
 @bot.event
 async def on_message(message):
-    logging.info(message.content)
+    #logging.info(message.content)
 
     if message.author == bot.user:
-        logging.info("Message sent by the bot. Skipping moderation...")
+        logging.info("Message de bot. Pas de modération...")
         return
     elif message.content.strip():
         await flag_message(message, is_edited=False)
     else:
-        logging.info("Received an empty message. Skipping moderation...")
+        logging.info("Message vide. Pas de modération...")
 
 @bot.event
 async def on_message_edit(before, after):
     if after.author == bot.user:
-        logging.info("Message edited by the bot. Skipping moderation...")
+        logging.info("Message édité de bot. Pas de modération...")
         return
     elif after.content.strip() != before.content.strip():
         await flag_message(after, is_edited=True, original_content=before.content)
 
 async def flag_message(message, is_edited=False, original_content=""):
     if message.channel.category is not None and message.channel.category.name.startswith(("🟢", "🔵", "🟡")):
-        logging.info(f"Sending message for moderation: {message.content}")
+        logging.info(f"Envoie pour modération : {message.content}")
         response = openai.Moderation.create(input=message.content) 
         output = response['results'][0]
     
@@ -113,10 +124,10 @@ async def flag_message(message, is_edited=False, original_content=""):
 
             embed.set_thumbnail(url=message.author.avatar.url)
 
-            logging.warning(f"Flagged message: {message.content}, Flagged categories: {', '.join(flagged_categories)}")
+            logging.warning(f"Message marqué : {message.content}, Categories : {', '.join(flagged_categories)}")
             await mod_channel.send(embed=embed)
     else:
-        logging.info("Message doesn't match category. Skipping moderation...")
+        logging.info("Le message ne match aucune catégorie. Pas de modération...")
 # Message flag ==========================================
 
 
@@ -144,10 +155,10 @@ async def lock_inactive_threads():
                     sleep 
                     new_name = f"🔒 - {thread.name}"
                     await thread.edit(locked=True, name=new_name[:100])  # Lock the thread and add "🔒 - " to its name
-                    logging.info(f"Thread locked and name changed in 💸┤offres-des-abonnés")
+                    logging.info(f"Thread lock et nom modifié dans 💸┤offres-des-abonnés")
                     await thread.send("Ce thread est fermé automatiquement après 10 jours d'inactivité.")
                     await thread.edit(archived=True)  # Close the thread
-                    logging.info(f"Thread closed in 💸┤offres-des-abonnés")
+                    logging.info(f"Thread fermé dans 💸┤offres-des-abonnés")
                     
                     # Compile stats and send embed in info channel
                     user_dict = {}
@@ -169,7 +180,6 @@ async def lock_inactive_threads():
                         "Nombre de participants": len(user_dict.keys()),
                         "Nombre de messages": sum(user_dict.values()),
                         "Participants": "\n".join([f"{k} - {v} messages" for k, v in user_dict.items()]),
-                        "Tag": thread.name,
                     }
 
                     embed = nextcord.Embed(
@@ -336,7 +346,6 @@ async def sos_modo(
             "Désolé, vous n'avez pas le rôle requis pour utiliser cette commande.",
             ephemeral=True
         )
-
 # Slash Commande ============================================================
 
 
