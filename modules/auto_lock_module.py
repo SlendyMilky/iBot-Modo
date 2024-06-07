@@ -73,7 +73,7 @@ class AutoLockThreads(commands.Cog):
 
         if before_tags != after_tags:
             resolved_tag = next((tag for tag in after.applied_tags if tag.name == 'Résolu'), None)
-            if resolved_tag:
+            if resolved_tag and not after.name.startswith("✅ - "):
                 new_name = f"✅ - {after.name}"
                 await after.edit(name=new_name[:100], applied_tags=[resolved_tag])
                 logger.info(f"Thread renamed to indicate resolution: {new_name}")
@@ -110,7 +110,7 @@ class AutoLockThreads(commands.Cog):
                                 # Add "Vérou-Auto" tag and archive the thread
                                 auto_lock_tag = next((tag for tag in channel.available_tags if tag.name == 'Vérou-Auto'), None)
                                 if auto_lock_tag:
-                                    current_tags = thread.applied_tags
+                                    current_tags = thread.applied_tags[:]
                                     current_tags.append(auto_lock_tag)
                                     await thread.edit(applied_tags=current_tags)
                                 await thread.edit(archived=True)  # Close the thread
