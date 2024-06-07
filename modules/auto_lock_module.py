@@ -72,9 +72,10 @@ class AutoLockThreads(commands.Cog):
         after_tags = set(tag.id for tag in after.applied_tags)
 
         if before_tags != after_tags:
-            if 'Résolu' in (tag.name for tag in after.applied_tags):
+            resolved_tag = next((tag for tag in after.applied_tags if tag.name == 'Résolu'), None)
+            if resolved_tag:
                 new_name = f"✅ - {after.name}"
-                await after.edit(name=new_name[:100])
+                await after.edit(name=new_name[:100], applied_tags=[resolved_tag])
                 logger.info(f"Thread renamed to indicate resolution: {new_name}")
 
     async def lock_inactive_threads(self):
@@ -105,6 +106,13 @@ class AutoLockThreads(commands.Cog):
                                 await thread.edit(locked=True, name=new_name[:100])  # Lock the thread and add "🔒 - " to its name
                                 logger.info(f"Thread locked and name changed in {channel.name}")
                                 await thread.send(f"Ce thread est fermé automatiquement après {inactive_days} jours d'inactivité.")
+                                
+                                # Add "Vérou-Auto" tag and archive the thread
+                                auto_lock_tag = next((tag for tag in channel.available_tags if tag.name == 'Vérou-Auto'), None)
+                                if auto_lock_tag:
+                                    current_tags = thread.applied_tags
+                                    current_tags.append(auto_lock_tag)
+                                    await thread.edit(applied_tags=current_tags)
                                 await thread.edit(archived=True)  # Close the thread
                                 logger.info(f"Thread closed in {channel.name}")
 
@@ -148,7 +156,7 @@ class AutoLockThreads(commands.Cog):
                                     embed.timestamp = datetime.utcnow()
                                     await info_channel.send(embed=embed)
 
-                                    await asyncio.sleep(5)  # Petite pause entre chaque thread
+                                    await asyncio.sleep(30)  # Petite pause entre chaque thread
             await asyncio.sleep(24*60*60)  # Wait a day before re-executing the loop
 
 def setup(bot):
