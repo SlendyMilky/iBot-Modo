@@ -7,7 +7,6 @@ from datetime import datetime, timezone, timedelta
 
 # Configuration du logger
 logger = logging.getLogger('bot.clear_module')
-# logging.basicConfig(level=logging.INFO)
 
 # Variables d'environnement pour la configuration
 moderator_role_ids_str = os.getenv('MODERATOR_ROLE_IDS', '')
@@ -41,7 +40,11 @@ class ClearMessages(commands.Cog):
                 await interaction.response.send_message("Vous n'avez pas la permission d'utiliser cette commande.", ephemeral=True)
                 return
 
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)
+
+            # Envoyer le message "ancrage"
+            anchor_message = await interaction.followup.send("Suppression des messages en cours...", ephemeral=True)
+            anchor_message_id = anchor_message.id
 
             # Définir la limite de suppression des messages (14 jours)
             time_limit = datetime.now(timezone.utc) - timedelta(weeks=2)
@@ -52,7 +55,7 @@ class ClearMessages(commands.Cog):
                 # Supprimer les messages d'un utilisateur spécifique
                 def check(msg):
                     # Ne pas supprimer les messages du bot envoyés dans les 5 dernières secondes
-                    return msg.author.id == member.id and msg.created_at > time_limit
+                    return msg.author.id == member.id and msg.created_at > time_limit and msg.id != anchor_message_id
 
                 async for message in interaction.channel.history(limit=200).filter(check):
                     if deleted_messages < number:
@@ -64,23 +67,21 @@ class ClearMessages(commands.Cog):
                 # Supprimer les derniers messages
                 async for message in interaction.channel.history(limit=200):
                     # Ne pas supprimer les messages du bot envoyés dans les 5 dernières secondes
-                    if message.created_at > time_limit and not (message.author.bot and message.created_at > recent_time_limit):
+                    if message.created_at > time_limit and not (message.author.bot and message.created_at > recent_time_limit) and message.id != anchor_message_id:
                         await message.delete()
                         deleted_messages += 1
                         if deleted_messages >= number:
                             break
 
-            # Utilisation de followup pour garantir l'absence d'erreur 404
-            await interaction.followup.send(f"{deleted_messages} messages supprimés.", ephemeral=True)
+            # Modifier le message "ancrage" pour indiquer le nombre de messages supprimés
+            await anchor_message.edit(content=f"{deleted_messages} messages supprimés.")
+            
         except nextcord.errors.NotFound as e:
             logger.error(f"Erreur de message introuvable : {str(e)}")
-            await interaction.followup.send("Erreur: Impossible de trouver un message à supprimer. Essayez à nouveau.", ephemeral=True)
         except nextcord.errors.ApplicationInvokeError as e:
             logger.error(f"Erreur d'invocation d'application : {str(e)}")
-            await interaction.followup.send("Erreur: Une erreur est survenue lors de l'exécution de la commande.", ephemeral=True)
         except Exception as e:
             logger.exception("Une erreur inattendue est survenue.")
-            await interaction.followup.send("Une erreur inattendue est survenue. Merci de réessayer.", ephemeral=True)
 
 def setup(bot):
     bot.add_cog(ClearMessages(bot))
