@@ -63,6 +63,8 @@ class ClearMessages(commands.Cog):
                         deleted_messages += 1
                     else:
                         break
+
+                final_message_content = f"{deleted_messages} messages de {member.mention} supprimés."
             else:
                 # Supprimer les derniers messages
                 async for message in interaction.channel.history(limit=200):
@@ -73,8 +75,10 @@ class ClearMessages(commands.Cog):
                         if deleted_messages >= number:
                             break
 
+                final_message_content = f"{deleted_messages} messages supprimés."
+                
             # Modifier le message "ancrage" pour indiquer le nombre de messages supprimés
-            await anchor_message.edit(content=f"{deleted_messages} messages supprimés.")
+            await anchor_message.edit(content=final_message_content)
             
         except nextcord.errors.NotFound as e:
             logger.error(f"Erreur de message introuvable : {str(e)}")
