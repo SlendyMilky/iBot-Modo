@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import nextcord
 from nextcord.ext import commands
 import os
