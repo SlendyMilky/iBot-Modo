@@ -61,18 +61,30 @@ class SOSCommands(commands.Cog):
                     moderator_db_message_id = message.id
                     embed = message.embeds[0]
                     content_lines = embed.description.split('\n')
-                    
+
+                    # Parsing Discord Moderators
                     def parse_line(line):
-                        parts = line.split(', ID: ')
-                        return {"id": int(parts[1]), "name": parts[0].split(" ")[1]}
-                    
+                        if ", ID: " in line:
+                            parts = line.split(', ID: ')
+                            if len(parts) == 2:
+                                try:
+                                    return {"id": int(parts[1]), "name": parts[0].split(" ")[0]}
+                                except (IndexError, ValueError) as e:
+                                    logger.error(f"Erreur de parsing de ligne de modérateur : {line}\n{str(e)}")
+                        return None
+
                     if "Moderators:" in content_lines[0]:
-                        moderator_db = [parse_line(line) for line in content_lines[1:content_lines.index("Telegram:")]]
+                        moderator_db = [parse_line(line) for line in content_lines[1:content_lines.index("Telegram:")] if parse_line(line)]
                     if "Telegram:" in content_lines:
                         for line in content_lines[content_lines.index("Telegram:") + 1:]:
-                            parts = line.split(', ID: ')
-                            telegram_db[parts[1]] = parts[0].split(" ")[1]
-                    
+                            if ", ID: " in line:
+                                parts = line.split(', ID: ')
+                                if len(parts) == 2:
+                                    try:
+                                        telegram_db[parts[1]] = parts[0].split(" ")[0]
+                                    except (IndexError, ValueError) as e:
+                                        logger.error(f"Erreur de parsing de ligne Telegram : {line}\n{str(e)}")
+
                     return
             # If no database message exists, create one
             moderator_db_message_id = await self.create_moderator_db_message(channel)
