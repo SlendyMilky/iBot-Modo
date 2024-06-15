@@ -42,19 +42,16 @@ class ClearMessages(commands.Cog):
         
         await interaction.response.defer()
 
-        # Identifier l’ID du message de suivi
-        followup_message = await interaction.followup.send("Suppression des messages en cours...", wait=True)
-        followup_message_id = followup_message.id
-
         # Définir la limite de suppression des messages (14 jours)
         time_limit = datetime.now(timezone.utc) - timedelta(weeks=2)
+        recent_time_limit = datetime.now(timezone.utc) - timedelta(seconds=5)
         deleted_messages = 0
 
         if member:
             # Supprimer les messages d'un utilisateur spécifique
             def check(msg):
-                # Ne pas supprimer le message de suivi
-                return msg.author.id == member.id and msg.created_at > time_limit and msg.id != followup_message_id
+                # Ne pas supprimer les messages du bot envoyés dans les 5 dernières secondes
+                return msg.author.id == member.id and msg.created_at > time_limit
 
             async for message in interaction.channel.history(limit=200).filter(check):
                 if deleted_messages < number:
@@ -64,14 +61,15 @@ class ClearMessages(commands.Cog):
                     break
         else:
             # Supprimer les derniers messages
-            async for message in interaction.channel.history(limit=number):
-                # Ne pas supprimer le message de suivi ou le message d'interaction ou les messages trop vieux
-                if message.id != interaction.id and message.created_at > time_limit and message.id != followup_message_id: 
+            async for message in interaction.channel.history(limit=200):
+                # Ne pas supprimer les messages du bot envoyés dans les 5 dernières secondes
+                if message.created_at > time_limit and not (message.author.bot and message.created_at > recent_time_limit):
                     await message.delete()
                     deleted_messages += 1
+                    if deleted_messages >= number:
+                        break
 
-        # Editer le message de suivi avec le nombre de messages supprimés
-        await followup_message.edit(content=f"{deleted_messages} messages supprimés.")
+        await interaction.followup.send(f"{deleted_messages} messages supprimés.")
 
 def setup(bot):
     bot.add_cog(ClearMessages(bot))
