@@ -39,7 +39,7 @@ class ClearMessages(commands.Cog):
         if not await self.is_moderator(interaction.user):
             await interaction.response.send_message("Vous n'avez pas la permission d'utiliser cette commande.", ephemeral=True)
             return
-        
+
         await interaction.response.defer()
 
         # Définir la limite de suppression des messages (14 jours)
@@ -69,7 +69,8 @@ class ClearMessages(commands.Cog):
                     if deleted_messages >= number:
                         break
 
-        await interaction.followup.send(f"{deleted_messages} messages supprimés.")
+        # Utilisation de followup pour garantir l'absence d'erreur 404
+        await interaction.followup.send(f"{deleted_messages} messages supprimés.", ephemeral=True)
 
 def setup(bot):
     bot.add_cog(ClearMessages(bot))
