@@ -1,7 +1,7 @@
 version: '3.9'
 services:
     ibot-gpt:
-        image: 'slendymilky/ibot-modo:latest'
+        image: 'ghcr.io/slendymilky/ibot-modo:2.0.2'
         container_name: ibot-modo
         restart: always
         environment:
