@@ -16,7 +16,10 @@ telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
 telegram_chat_ids = os.getenv('TELEGRAM_CHAT_IDS', '').split(',')
 
 # Chemin vers le fichier JSON pour la base de données locale
-db_file_path = 'moderator_db.json'
+db_file_path = os.path.join('database', 'moderator_db.json')
+
+# Assurez-vous que le dossier 'database' existe
+os.makedirs('database', exist_ok=True)
 
 # Initialise la liste des modérateurs et des utilisateurs Telegram
 moderator_db = []
@@ -157,7 +160,7 @@ class SOSCommands(commands.Cog):
                 if moderator_user:
                     await moderator_user.send(embed=discord_message)
 
-    @nextcord.slash_command(name="sos", description="Ping les modérateurs en cas d'urgence.")
+    @nextcord.slash_command(name="sos", description="Ping les modérateurs en cas d'extrême urgence. ⚠️ Abus sévèrement punis ! ⚠️")
     async def sos(self,
                   interaction: Interaction,
                   message: str = SlashOption(name="message", description="Message à envoyer aux modérateurs", required=True),

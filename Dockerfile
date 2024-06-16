@@ -9,6 +9,7 @@ RUN apk update && \
     python3 \
     py3-pip && \
     mkdir /iBot-Modo && \
+    mkdir /iBot-Modo/Database && \
     cp /usr/share/zoneinfo/Europe/Zurich /etc/localtime && \
     echo "Europe/Zurich" > /etc/timezone && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
