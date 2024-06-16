@@ -63,17 +63,28 @@ class ModeratorDBView(View):
 class SOSCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.moderator_db_message_id = None  # Initialize the attribute
         self.load_data()
 
     def load_data(self):
         global moderator_db
         global telegram_db
         if os.path.exists(db_file_path):
-            with open(db_file_path, 'r') as file:
-                data = json.load(file)
-                moderator_db = data.get('moderators', [])
-                telegram_db = data.get('telegram', {})
-                self.moderator_db_message_id = data.get('moderator_db_message_id', None)
+            try:
+                with open(db_file_path, 'r') as file:
+                    if os.stat(db_file_path).st_size == 0:
+                        data = {}
+                    else:
+                        data = json.load(file)
+                    moderator_db = data.get('moderators', [])
+                    telegram_db = data.get('telegram', {})
+                    self.moderator_db_message_id = data.get('moderator_db_message_id', None)
+            except json.JSONDecodeError:
+                data = {}
+                moderator_db = []
+                telegram_db = {}
+                self.moderator_db_message_id = None
+                self.save_data()
         else:
             self.save_data()
 
@@ -98,16 +109,13 @@ class SOSCommands(commands.Cog):
 
         try:
             if self.moderator_db_message_id:
-                # Fetch the message to check if it exists
                 message = await channel.fetch_message(self.moderator_db_message_id)
                 await self.update_moderator_db_message(channel)
             else:
-                # If the message ID is not saved or the message could not be fetched, create a new one
                 self.moderator_db_message_id = await self.create_moderator_db_message(channel)
                 self.save_data()
 
         except nextcord.errors.NotFound:
-            # If the message is not found, create a new one
             self.moderator_db_message_id = await self.create_moderator_db_message(channel)
             self.save_data()
             logger.info(f"Nouveau message de base de données des modérateurs créé avec l'ID: {self.moderator_db_message_id}")
@@ -220,7 +228,6 @@ class SOSCommands(commands.Cog):
                     message = await channel.fetch_message(self.moderator_db_message_id)
                     await message.edit(view=view)
                 except nextcord.errors.NotFound:
-                    # If the message is not found, create a new one
                     self.moderator_db_message_id = await self.create_moderator_db_message(channel)
                     self.save_data()
                     logger.info(f"Nouveau message de base de données des modérateurs créé avec l'ID: {self.moderator_db_message_id}")
