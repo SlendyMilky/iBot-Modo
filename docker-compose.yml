@@ -7,7 +7,7 @@ services:
         environment:
             - stack.env
         volumes:
-            - bot_db:/iBot-Modo/Database
+            - bot_db:/iBot-Modo/database
 
 volumes:
   bot_db: {}
