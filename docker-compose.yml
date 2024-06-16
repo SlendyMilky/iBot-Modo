@@ -4,7 +4,7 @@ services:
         image: 'ghcr.io/slendymilky/ibot-modo:2.0.2'
         container_name: ibot-modo
         restart: always
-        environment:
+        env_file:
             - stack.env
         volumes:
             - bot_db:/iBot-Modo/database
