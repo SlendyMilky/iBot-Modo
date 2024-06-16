@@ -150,7 +150,12 @@ class SOSCommands(commands.Cog):
             for chat_id in telegram_chat_ids:
                 response = requests.post(
                     f'https://api.telegram.org/bot{telegram_bot_token}/sendMessage',
-                    data={'chat_id': chat_id, 'text': telegram_message, 'parse_mode': 'HTML'}
+                    data={
+                        'chat_id': chat_id, 
+                        'text': telegram_message, 
+                        'parse_mode': 'HTML', 
+                        'disable_web_page_preview': True
+                    }
                 )
                 if response.status_code != 200:
                     logger.error(f"Erreur lors de l'envoi du message Telegram : {response.text}")
@@ -163,8 +168,7 @@ class SOSCommands(commands.Cog):
     @nextcord.slash_command(name="sos", description="Ping les modérateurs en cas d'extrême urgence. ⚠️ Abus sévèrement punis ! ⚠️")
     async def sos(self,
                   interaction: Interaction,
-                  message: str = SlashOption(name="message", description="Message à envoyer aux modérateurs", required=True),
-                  moderator: nextcord.Member = SlashOption(name="moderator", description="Modérateur spécifique (facultatif)", required=False)):
+                  message: str = SlashOption(name="message", description="Message à envoyer aux modérateurs", required=True)):
 
         await interaction.response.defer(ephemeral=True)
 
@@ -179,7 +183,7 @@ class SOSCommands(commands.Cog):
                 f"**Salon**: {interaction.channel.mention}\n"
                 f"**Message**: {message}\n\n"
                 f"_De: {interaction.user.mention}_\n"
-                f"[Aller au salon]({interaction.channel.jump_url})"
+                f"[Aller au salon](<https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}>)"  # désactive la prévisualisation
             )
         )
 
@@ -191,17 +195,9 @@ class SOSCommands(commands.Cog):
             f"<i>De: {interaction.user}</i>"
         )
 
-        if moderator:
-            if moderator.id not in [mod['id'] for mod in moderator_db]:
-                await interaction.followup.send(f"{moderator.mention} n'est pas un modérateur reconnu.", ephemeral=True)
-                return
-            # Notify a specific moderator
-            await moderator.send(embed=sos_embed)
-            await interaction.followup.send(f"SOS notification envoyée à {moderator.mention}.", ephemeral=True)
-        else:
-            # Notify all moderators
-            await self.sos_notification(discord_message=sos_embed)
-            await interaction.followup.send("SOS notification envoyée à tous les modérateurs.", ephemeral=True)
+        # Notify all moderators
+        await self.sos_notification(discord_message=sos_embed)
+        await interaction.followup.send("SOS notification envoyée à tous les modérateurs.", ephemeral=True)
 
         # Optionally send to Telegram
         if telegram_bot_token and telegram_chat_ids:
