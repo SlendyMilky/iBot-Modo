@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 # Configuration du logger
 logger = logging.getLogger('bot.clear_module')
+#logging.basicConfig(level=logging.DEBUG)
 
 # Variables d'environnement pour la configuration
 moderator_role_ids_str = os.getenv('MODERATOR_ROLE_IDS', '')

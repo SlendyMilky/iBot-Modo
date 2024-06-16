@@ -18,7 +18,8 @@ RUN apk update && \
 WORKDIR /iBot-Modo
 COPY . /iBot-Modo/
 RUN pip install python-dotenv --break-system-packages && \
-    pip install -r requirements.txt --break-system-packages
+    pip install -r requirements.txt --break-system-packages && \
+    mkdir /iBot-Modo/database
 
 # Run the application
 CMD ["python3", "/iBot-Modo/ibot-modo.py"]

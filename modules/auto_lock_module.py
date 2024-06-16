@@ -10,7 +10,7 @@ import asyncio
 
 # Configuration du logger
 logger = logging.getLogger('bot.auto_lock_module')
-#logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.DEBUG)
 
 # Variables d'environnement pour la configuration
 inactive_days = os.getenv('INACTIVE_DAYS', '15')

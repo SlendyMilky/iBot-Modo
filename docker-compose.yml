@@ -6,3 +6,8 @@ services:
         restart: always
         environment:
             - stack.env
+        volumes:
+            - bot_db:/iBot-Modo/database
+
+volumes:
+  bot_db: {}
