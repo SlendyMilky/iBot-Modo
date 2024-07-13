@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import nextcord
+from nextcord import SlashOption, Interaction
 from nextcord.ext import commands
 import os
 import logging
@@ -73,6 +74,15 @@ class RenameBurillon(commands.Cog):
         # Generate new nickname from ChatGPT
         new_nickname = await self.ask_gpt()
         burillon.edit(nick=new_nickname.choices[0].message.content)
+
+    @nextcord.slash_command(name="burillon_list", description="Gère la liste des pseudos déjà utilisés pour Burillon", guild_ids=[285029536016367616])
+    async def renameBurillonModo(self, interaction: Interaction,
+                    action: str = SlashOption(name="action", description="Action à effectuer", required=True, choices=["add", "remove"]),
+                    pseudo: int = SlashOption(name="pseudo", description="Pseudo à ajouter/retirer", required=True)):
+        pass # En attente de voir comment on va gérer la liste des pseudos
+        
+
+
 
 def setup(bot):
     bot.add_cog(RenameBurillon(bot))
