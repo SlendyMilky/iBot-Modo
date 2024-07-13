@@ -14,6 +14,8 @@ intents.message_content = True  # Activer les intents de contenu de message
 
 bot = commands.Bot(command_prefix="§", intents=intents)
 
+
+
 # Configuration du logger
 logger = logging.getLogger('bot')
 logger.setLevel(logging.INFO)
