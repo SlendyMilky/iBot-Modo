@@ -48,7 +48,7 @@ class ForumNoDelete(commands.Cog):
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
-        logger.debug(f"Thread créé: {thread.name}")
+        # Vérification si le thread est dans un forum surveillé
         if thread.parent_id in monitor_forum_ids:
             try:
                 await thread.join()
@@ -59,9 +59,18 @@ class ForumNoDelete(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
         async with self.lock:  # Using a lock to avoid race conditions
-            try:
-                logger.debug(f"Message supprimé: ID {payload.message_id}")
-                
+            try:  # Début du bloc try pour englober le code susceptible de générer des exceptions
+                # Récupération du canal et vérification s'il s'agit d'un thread dans un forum surveillé
+                channel = None
+                try:
+                    channel = await self.bot.fetch_channel(payload.channel_id)
+                    if not isinstance(channel, nextcord.Thread) or channel.parent_id not in monitor_forum_ids:
+                        logger.debug("Le canal n'est pas un thread dans un forum surveillé, ignoré.")
+                        return
+                except Exception as e:
+                    logger.error(f"Impossible de récupérer le canal avec ID {payload.channel_id} en utilisant fetch_channel : {e}")
+                    return
+
                 if not (payload.guild_id and payload.channel_id):
                     logger.warning("Informations de guilde ou de canal manquantes dans le payload de suppression de message.")
                     return
@@ -69,17 +78,6 @@ class ForumNoDelete(commands.Cog):
                 guild = self.bot.get_guild(payload.guild_id)
                 if not guild:
                     logger.error(f"Impossible de récupérer la guilde avec ID {payload.guild_id}")
-                    return
-
-                channel = None
-                try:
-                    channel = await self.bot.fetch_channel(payload.channel_id)
-                except Exception as e:
-                    logger.error(f"Impossible de récupérer le canal avec ID {payload.channel_id} en utilisant fetch_channel : {e}")
-                    return
-                
-                if not isinstance(channel, nextcord.Thread):
-                    logger.debug("Le canal n'est pas un thread, ignoré.")
                     return
 
                 # Récupération du créateur du thread via owner_id
@@ -129,9 +127,7 @@ class ForumNoDelete(commands.Cog):
                 except Exception as e:
                     logger.error(f"Erreur lors de la lecture des logs d'audit: {e}")
 
-                deleter_info = f"Message supprimé par : {deleter.mention} (ID: {deleter.id})" if deleter else "Auteur de la suppression introuvable."
-
-                description = f"Le message de base du thread `{channel.name}` a été supprimé par {deleter_info if deleter else 'inconnu'}."
+                description = f"Le message de base du thread `{channel.name}` a été supprimé par {thread_creator_mention}."
                 embed = nextcord.Embed(
                     title=f"🚫 Message de thread supprimé : {channel.name}",
                     description=description,
@@ -160,8 +156,7 @@ class ForumNoDelete(commands.Cog):
                     logger.info(f"Avertissement envoyé au thread {channel.name} concernant la suppression du message de base.")
                 except Exception as e:
                     logger.error(f"Impossible d'envoyer l'avertissement dans le thread: {e}")
-
-            except Exception as general_exception:
+            except Exception as general_exception:  # Ce bloc except doit être à la fin du bloc try
                 logger.error(f"Une erreur inattendue a été rencontrée: {general_exception}")
 
 def setup(bot):
