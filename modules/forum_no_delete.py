@@ -82,6 +82,16 @@ class ForumNoDelete(commands.Cog):
                     logger.debug("Le canal n'est pas un thread, ignoré.")
                     return
 
+                # Récupération du créateur du thread via owner_id
+                thread_creator = None
+                try:
+                    thread_creator = await self.bot.fetch_user(channel.owner_id)
+                except Exception as e:
+                    logger.error(f"Impossible de récupérer le créateur du thread {channel.name} avec l'ID {channel.owner_id}: {e}")
+                    return
+
+                thread_creator_mention = thread_creator.mention if thread_creator else "Créateur du thread introuvable."
+
                 if payload.message_id != channel.id:
                     logger.debug("Le message supprimé n'est pas le message initial du thread, ignoré.")
                     return
@@ -144,7 +154,7 @@ class ForumNoDelete(commands.Cog):
                     logger.error(f"Impossible d'envoyer l'embed dans le salon d'infos: {e}")
 
                 try:
-                    warning_message = f"⚠️ Le message de base de ce thread a été supprimé. Cela n'est pas autorisé."
+                    warning_message = f"⚠️ {thread_creator_mention} Le message de base de ce thread a été supprimé. Cela n'est pas autorisé."
                     await channel.send(warning_message)
                     self.warning_sent.add(channel.id)
                     logger.info(f"Avertissement envoyé au thread {channel.name} concernant la suppression du message de base.")
